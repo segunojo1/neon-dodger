@@ -10,5 +10,18 @@
 </head>
 <body>
   <canvas id="game" width="800" height="600"></canvas>
+  <script>
+    const cvs = document.getElementById('game');
+    const ctx = cvs.getContext('2d');
+    const player = { x: 400, y: 300, r: 15 };
+    function draw() {
+      ctx.fillStyle = "#000"; ctx.fillRect(0,0,800,600);
+      ctx.beginPath();
+      ctx.arc(player.x, player.y, player.r, 0, Math.PI*2);
+      ctx.fillStyle = "#4cf";
+      ctx.fill();
+    }
+    draw();
+  </script>
 </body>
 </html>
