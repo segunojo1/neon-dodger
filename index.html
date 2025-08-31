@@ -1,43 +1,92 @@
-<script>
-    const cvs = document.getElementById('game');
-    const ctx = cvs.getContext('2d');
-    const keys = new Set();
-    const player = { x: 400, y: 300, r: 15, speed: 200 };
-    
-    addEventListener('keydown', e => keys.add(e.key.toLowerCase()));
-    addEventListener('keyup', e => keys.delete(e.key.toLowerCase()));
-    
-    let last = performance.now();
-    function loop(t) {
-      const dt = (t - last) / 1000; last = t;
-    
-      // update player
-      if(keys.has('arrowup') || keys.has('w')) player.y -= player.speed*dt;
-      if(keys.has('arrowdown') || keys.has('s')) player.y += player.speed*dt;
-      if(keys.has('arrowleft') || keys.has('a')) player.x -= player.speed*dt;
-      if(keys.has('arrowright') || keys.has('d')) player.x += player.speed*dt;
-    
-      // keep inside bounds
-      player.x = Math.max(player.r, Math.min(800-player.r, player.x));
-      player.y = Math.max(player.r, Math.min(600-player.r, player.y));
-    
-      // draw
-      ctx.fillStyle = "#000"; ctx.fillRect(0,0,800,600);
-      ctx.beginPath();
-      ctx.arc(player.x, player.y, player.r, 0, Math.PI*2);
-      ctx.fillStyle = "#4cf";
-      ctx.fill();
-      class Orb {
-  constructor(){ this.x = Math.random()*760+20; this.y = Math.random()*560+20; this.r=8; }
-  draw(){ ctx.beginPath(); ctx.arc(this.x,this.y,this.r,0,Math.PI*2); ctx.fillStyle="#ff0"; ctx.fill(); }
-}
-let orb = new Orb();
-function dist(a,b){ return Math.hypot(a.x-b.x,a.y-b.y); }
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Mini Neon Dodger</title>
+<style>
+  body {
+    margin: 0; background: #111; color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    height: 100vh; overflow: hidden; font-family: sans-serif;
+  }
+  canvas { background: #000; border: 2px solid #555; border-radius: 8px; }
+  #ui { position: absolute; top: 10px; left: 10px; }
+  #ui span { margin-right: 20px; }
+  #overlay {
+    position: absolute; inset: 0; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; background: rgba(0,0,0,.8);
+  }
+  button { margin-top: 15px; padding: 10px 20px; font-size: 16px; }
+</style>
+</head>
+<body>
+<canvas id="game" width="800" height="600"></canvas>
+<div id="ui"><span>Score: <b id="score">0</b></span><span>Best: <b id="best">0</b></span></div>
+<div id="overlay"><h1 id="title">Mini Neon Dodger</h1><button id="playBtn">Play</button></div>
 
-if(dist(player,orb) < player.r+orb.r){ orb=new Orb(); }
-orb.draw();
-      requestAnimationFrame(loop);
+<script>
+(() => {
+  const cvs = document.getElementById('game'), ctx = cvs.getContext('2d');
+  const scoreEl = document.getElementById('score'), bestEl = document.getElementById('best');
+  const overlay = document.getElementById('overlay'), playBtn = document.getElementById('playBtn');
+  const keys = new Set();
+  let player, orb, hazards, score, best = +localStorage.getItem("mini_best")||0, playing=false;
+
+  class Entity { constructor(x,y,r,c){this.x=x;this.y=y;this.r=r;this.c=c;this.vx=0;this.vy=0;} draw(){ctx.beginPath();ctx.arc(this.x,this.y,this.r,0,Math.PI*2);ctx.fillStyle=this.c;ctx.fill();} }
+  class Player extends Entity {
+    constructor(){ super(400,300,12,'#4cf'); }
+    update(dt){
+      let dx=0,dy=0; if(keys.has("arrowup")||keys.has("w"))dy-=1; if(keys.has("arrowdown")||keys.has("s"))dy+=1;
+      if(keys.has("arrowleft")||keys.has("a"))dx-=1; if(keys.has("arrowright")||keys.has("d"))dx+=1;
+      this.x+=dx*200*dt; this.y+=dy*200*dt;
+      this.x=Math.max(this.r,Math.min(800-this.r,this.x));
+      this.y=Math.max(this.r,Math.min(600-this.r,this.y));
     }
-    loop(last);
-    </script>
-   
+  }
+  class Orb extends Entity { constructor(){ super(rand(20,780),rand(20,580),8,'#ff0'); } }
+  class Hazard extends Entity {
+    constructor(){ 
+      super(rand(0,800),-20,10,'#f44'); 
+      this.vy=rand(80,150);
+    }
+    update(dt){ this.y+=this.vy*dt; if(this.y>620)this.dead=true; }
+  }
+  function rand(a,b){return a+Math.random()*(b-a);}
+  function reset(){
+    player=new Player(); orb=new Orb(); hazards=[]; score=0;
+    overlay.style.display="none"; playing=true;
+  }
+  function end(){
+    playing=false; overlay.style.display="flex"; document.getElementById("title").innerText="Game Over! Score: "+score;
+    if(score>best){ best=score; localStorage.setItem("mini_best",best); }
+  }
+
+  function loop(t){
+    requestAnimationFrame(loop);
+    if(!playing)return;
+    const now=performance.now(); const dt=(now-last)/1000; last=now;
+
+    // update
+    player.update(dt);
+    if(dist(player,orb)<player.r+orb.r){ score++; orb=new Orb(); }
+    hazards.forEach(h=>h.update(dt));
+    if(Math.random()<0.02)hazards.push(new Hazard());
+    hazards=hazards.filter(h=>!h.dead);
+    hazards.forEach(h=>{ if(dist(player,h)<player.r+h.r){ end(); } });
+
+    // draw
+    ctx.fillStyle="#000"; ctx.fillRect(0,0,800,600);
+    orb.draw(); hazards.forEach(h=>h.draw()); player.draw();
+    scoreEl.textContent=score; bestEl.textContent=best;
+  }
+  function dist(a,b){return Math.hypot(a.x-b.x,a.y-b.y);}
+  let last=performance.now(); requestAnimationFrame(loop);
+
+  playBtn.onclick=()=>{ reset(); last=performance.now(); };
+  addEventListener("keydown",e=>keys.add(e.key.toLowerCase()));
+  addEventListener("keyup",e=>keys.delete(e.key.toLowerCase()));
+})();
+</script>
+</body>
+</html>
