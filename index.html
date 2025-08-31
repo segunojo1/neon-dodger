@@ -1,27 +1,35 @@
-<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <title>Mini Game</title>
-  <style>
-    body { margin: 0; display: flex; justify-content: center; align-items: center; height: 100vh; background: #111; }
-    canvas { background: #000; border: 2px solid #555; }
-  </style>
-</head>
-<body>
-  <canvas id="game" width="800" height="600"></canvas>
-  <script>
+<script>
     const cvs = document.getElementById('game');
     const ctx = cvs.getContext('2d');
-    const player = { x: 400, y: 300, r: 15 };
-    function draw() {
+    const keys = new Set();
+    const player = { x: 400, y: 300, r: 15, speed: 200 };
+    
+    addEventListener('keydown', e => keys.add(e.key.toLowerCase()));
+    addEventListener('keyup', e => keys.delete(e.key.toLowerCase()));
+    
+    let last = performance.now();
+    function loop(t) {
+      const dt = (t - last) / 1000; last = t;
+    
+      // update player
+      if(keys.has('arrowup') || keys.has('w')) player.y -= player.speed*dt;
+      if(keys.has('arrowdown') || keys.has('s')) player.y += player.speed*dt;
+      if(keys.has('arrowleft') || keys.has('a')) player.x -= player.speed*dt;
+      if(keys.has('arrowright') || keys.has('d')) player.x += player.speed*dt;
+    
+      // keep inside bounds
+      player.x = Math.max(player.r, Math.min(800-player.r, player.x));
+      player.y = Math.max(player.r, Math.min(600-player.r, player.y));
+    
+      // draw
       ctx.fillStyle = "#000"; ctx.fillRect(0,0,800,600);
       ctx.beginPath();
       ctx.arc(player.x, player.y, player.r, 0, Math.PI*2);
       ctx.fillStyle = "#4cf";
       ctx.fill();
+    
+      requestAnimationFrame(loop);
     }
-    draw();
-  </script>
-</body>
-</html>
+    loop(last);
+    </script>
+    
