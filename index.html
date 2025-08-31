@@ -27,9 +27,17 @@
       ctx.arc(player.x, player.y, player.r, 0, Math.PI*2);
       ctx.fillStyle = "#4cf";
       ctx.fill();
-    
+      class Orb {
+  constructor(){ this.x = Math.random()*760+20; this.y = Math.random()*560+20; this.r=8; }
+  draw(){ ctx.beginPath(); ctx.arc(this.x,this.y,this.r,0,Math.PI*2); ctx.fillStyle="#ff0"; ctx.fill(); }
+}
+let orb = new Orb();
+function dist(a,b){ return Math.hypot(a.x-b.x,a.y-b.y); }
+
+if(dist(player,orb) < player.r+orb.r){ orb=new Orb(); }
+orb.draw();
       requestAnimationFrame(loop);
     }
     loop(last);
     </script>
-    
+   
